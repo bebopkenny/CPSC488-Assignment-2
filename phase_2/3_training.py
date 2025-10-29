@@ -92,17 +92,19 @@ def main():
             loss.backward()
             opt.step()
             total += float(loss.item()) * xb.size(0)
-            avg = total / len(Xtr)
+
+        avg = total / len(Xtr)  # compute after finishing the epoch
         print(f"Epoch {epoch:02d} | loss {avg:.4f}")
+
+        # early stopping
         if avg + 1e-4 < best_loss:
-            best_loss = avg; strikes = 0
+            best_loss = avg
+            strikes = 0
         else:
             strikes += 1
             if strikes >= patience:
-                print("Early stopping."); break
-
-        print(f"Epoch {epoch:02d} | loss {total / len(Xtr):.4f}")
-
+                print("Early stopping.")
+                break
     out_path = MODELS / f"{args.name}_mlp.pth"
     torch.save({"model_state": model.state_dict(), "meta": meta}, out_path)
     print("[OK] saved", out_path)

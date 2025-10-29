@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse
 from pathlib import Path
 import numpy as np
@@ -21,7 +22,7 @@ def main():
     if args.ternary:
         y = np.where(y <= -1, -1, np.where(y >= 1, 1, 0))
 
-    n = len(y); n_tr = int(0.8*n)  # chronological split
+    n = len(y); n_tr = int(0.8*n)
     Xtr, Xte = X[:n_tr], X[n_tr:]
     ytr, yte = y[:n_tr], y[n_tr:]
 

@@ -57,33 +57,42 @@ def main():
 
     prefix = PROC / args.name
     X_train, y_train, X_test, y_test, meta = load_splits(prefix)
+
+    # carve chronological validation from the end of TRAIN (10%)
+    n_tr = len(X_train)
+    n_val = max(1, int(0.1 * n_tr))
+    Xtr, ytr = X_train[:-n_val], y_train[:-n_val]
+    Xval, yval = X_train[-n_val:], y_train[-n_val:]
+
     input_dim = meta["input_dim"]
     num_classes = len(meta.get("class_order", [-3, -2, -1, 0, 1, 2, 3]))
 
+    # tensors
+    Xtr_t  = torch.from_numpy(Xtr)
+    ytr_t  = torch.from_numpy(ytr)
+    Xval_t = torch.from_numpy(Xval)
+    yval_t = torch.from_numpy(yval)
 
-    Xtr = torch.from_numpy(X_train)
-    ytr = torch.from_numpy(y_train)
-
-    class_counts = np.bincount(y_train, minlength=num_classes).astype(np.float32)
-    inv_sqrt = 1.0 / np.sqrt(np.maximum(class_counts, 1.0))
-    inv_sqrt /= inv_sqrt.mean()
-    class_weights = torch.tensor(inv_sqrt, dtype=torch.float32)
-
-    # sample weights per example -> oversample rare classes
-    sample_weights = class_weights[ytr].numpy()
-    sampler = WeightedRandomSampler(weights=sample_weights, num_samples=len(sample_weights), replacement=True)
+    # class-weighted CE (balanced-ish)
+    class_counts = np.bincount(ytr, minlength=num_classes).astype(np.float32)
+    weights = class_counts.sum() / np.maximum(class_counts, 1.0)
+    weights = weights / weights.mean()
+    class_weights = torch.tensor(weights, dtype=torch.float32)
 
     model = MLP(input_dim=input_dim, num_classes=num_classes)
     opt = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
 
-    # focal loss with our class weights
-    criterion = FocalLoss(alpha=class_weights, gamma=2.0)
+    # plain shuffled loader (no sampler)
+    train_loader = DataLoader(TensorDataset(Xtr_t, ytr_t), batch_size=args.batch_size, shuffle=True)
 
-    train_loader = DataLoader(TensorDataset(Xtr, ytr), batch_size=args.batch_size, sampler=sampler)
+    # train with val early stopping
+    best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
+    best_val = float("inf"); patience = 8; strikes = 0
 
-    model.train()
-    best_loss = float("inf"); patience = 5; strikes = 0
     for epoch in range(1, args.epochs + 1):
+        # train
+        model.train()
         total = 0.0
         for xb, yb in train_loader:
             opt.zero_grad(set_to_none=True)
@@ -92,22 +101,28 @@ def main():
             loss.backward()
             opt.step()
             total += float(loss.item()) * xb.size(0)
+        train_avg = total / len(Xtr_t)
 
-        avg = total / len(Xtr)  # compute after finishing the epoch
-        print(f"Epoch {epoch:02d} | loss {avg:.4f}")
+        # validate
+        model.eval()
+        with torch.no_grad():
+            logits = model(Xval_t)
+            val_loss = float(criterion(logits, yval_t).item())
 
-        # early stopping
-        if avg + 1e-4 < best_loss:
-            best_loss = avg
+        print(f"Epoch {epoch:02d} | train {train_avg:.4f} | val {val_loss:.4f}")
+
+        if val_loss + 1e-4 < best_val:
+            best_val = val_loss
             strikes = 0
+            best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
         else:
             strikes += 1
             if strikes >= patience:
-                print("Early stopping.")
+                print("Early stopping on validation loss.")
                 break
+
+    # restore best and save
+    model.load_state_dict(best_state)
     out_path = MODELS / f"{args.name}_mlp.pth"
     torch.save({"model_state": model.state_dict(), "meta": meta}, out_path)
     print("[OK] saved", out_path)
-
-if __name__ == "__main__":
-    main()

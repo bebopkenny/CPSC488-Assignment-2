@@ -204,10 +204,23 @@ def main():
     stop_words = "english"  # we kept negations at cleaning by not removing 'no'/'not' explicitly
 
     # 1) DTM
-    cv = CountVectorizer(min_df=5, token_pattern=token_pattern, stop_words=stop_words)
+    cv = CountVectorizer(
+    min_df=2,           # was 5
+    max_df=0.9,
+    ngram_range=(1,2),  # add bigrams
+    token_pattern=r"(?u)\b[a-z0-9]{2,}\b",
+    stop_words="english"
+    )
+    
     X_dtm = cv.fit_transform(agg3["news"].values)
     # 2) TF-IDF
-    tfv = TfidfVectorizer(min_df=5, token_pattern=token_pattern, stop_words=stop_words)
+    tfv = TfidfVectorizer(
+    min_df=2,           # was 5
+    max_df=0.9,
+    ngram_range=(1,2),  # add bigrams
+    token_pattern=r"(?u)\b[a-z0-9]{2,}\b",
+    stop_words="english"
+    )
     X_tfidf = tfv.fit_transform(agg3["news"].values)
     # 3) Curated (fixed small vocab counts)
     vocab_idx = {w:i for i,w in enumerate(CURATED)}

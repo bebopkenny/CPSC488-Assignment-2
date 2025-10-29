@@ -1,0 +1,13 @@
+pandas 
+numpy 
+yfinance 
+beautifulsoup4 
+requests 
+lxml 
+html5lib 
+scikit-learn 
+torch 
+torchvision 
+torchaudio 
+tqdm 
+python-dateutil

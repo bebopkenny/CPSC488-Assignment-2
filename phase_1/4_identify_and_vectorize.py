@@ -194,6 +194,8 @@ def main():
     agg3 = pd.DataFrame(rows)
     # Clean again to be safe
     agg3["news"] = agg3["news"].map(clean_text)
+    print(f"[INFO] Aggregated rows: {len(agg3)} (should be close to your trading-day count)")
+
 
     # (Optional) remove truly empty news rows to avoid empty docs
     # But we will keep them; vectorizers can handle empty -> all zeros.

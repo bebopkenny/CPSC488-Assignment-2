@@ -124,3 +124,117 @@ def clean_text(s: str) -> str:
     # collapse whitespace
     s = re.sub(r"\s+", " ", s).strip()
     return s
+
+CURATED = [
+    "upgrade","downgrade","beat","miss","surge","plunge","strong","weak","guidance","cut"
+]
+
+def build_aggregated_news() -> pd.DataFrame:
+    """Returns DataFrame: date (datetime64[D]), symbol, news (cleaned, possibly empty)."""
+    # Load both files (best-effort union)
+    a = load_news_csv(NEWS_DIR / "analyst_ratings.csv")
+    h = load_news_csv(NEWS_DIR / "headlines.csv")
+    news = pd.concat([a, h], ignore_index=True)
+    if news.empty:
+        return pd.DataFrame(columns=["date","symbol","news"])
+
+    # Ensure types
+    news["symbol"] = news["symbol"].astype(str).str.upper().str.strip()
+    # If date missing or invalid, drop (we need dates to align)
+    news["date"] = pd.to_datetime(news["date"], errors="coerce")
+    news = news.dropna(subset=["date", "symbol"])
+    news["date"] = news["date"].dt.normalize()
+
+    # Build a minimal text field (headline only for this assignment)
+    news["text"] = news["headline"].fillna("")
+
+    # Clean
+    news["text"] = news["text"].map(clean_text)
+
+    # Aggregate per (date, symbol)
+    agg = (news.groupby(["date","symbol"], as_index=False)["text"]
+                .apply(lambda s: " . ".join([t for t in s.tolist() if t])))
+    agg = agg.rename(columns={"text":"news"})
+    return agg
+
+def main():
+    if not PRICES_WITH_IMPACT.exists():
+        raise SystemExit(f"Missing input: {PRICES_WITH_IMPACT}")
+
+    prices = pd.read_csv(PRICES_WITH_IMPACT, parse_dates=["date"])
+    # trading calendar per symbol (we only vectorize for non-market rows)
+    prices = prices.sort_values(["symbol","date"]).reset_index(drop=True)
+    non_mkt = prices["symbol"].str.lower() != "s&p"
+    base = prices.loc[non_mkt, ["date","symbol","impact_score"]].copy()
+
+    # All trading dates per symbol indexed
+    base["date"] = base["date"].dt.normalize()
+
+    # News aggregated per calendar day
+    day_news = build_aggregated_news()
+
+    # Build 3-trading-day rolling text per (symbol, date)
+    # 1) wide dict of news per (symbol,date)
+    key_to_text = {(r.symbol, r.date): r.news for r in day_news.itertuples(index=False)} if not day_news.empty else {}
+
+    rows = []
+    for sym, g in base.groupby("symbol"):
+        dates = g["date"].tolist()  # trading dates for this symbol
+        for i, d in enumerate(dates):
+            # take d, d-1, d-2 in TRADING order (not calendar)
+            window = dates[max(0, i-2): i+1]
+            texts = []
+            for wd in window:
+                t = key_to_text.get((sym, wd), "")
+                if t:
+                    texts.append(t)
+            combined = " . ".join(texts)
+            rows.append({"date": d, "symbol": sym, "impact_score": int(g.iloc[i].impact_score), "news": combined})
+
+    agg3 = pd.DataFrame(rows)
+    # Clean again to be safe
+    agg3["news"] = agg3["news"].map(clean_text)
+
+    # (Optional) remove truly empty news rows to avoid empty docs
+    # But we will keep them; vectorizers can handle empty -> all zeros.
+
+    # --- Vectorizers ---
+    # Common params
+    token_pattern = r"(?u)\b[a-z0-9]{2,}\b"  # keep simple alnum tokens length>=2
+    stop_words = "english"  # we kept negations at cleaning by not removing 'no'/'not' explicitly
+
+    # 1) DTM
+    cv = CountVectorizer(min_df=5, token_pattern=token_pattern, stop_words=stop_words)
+    X_dtm = cv.fit_transform(agg3["news"].values)
+    # 2) TF-IDF
+    tfv = TfidfVectorizer(min_df=5, token_pattern=token_pattern, stop_words=stop_words)
+    X_tfidf = tfv.fit_transform(agg3["news"].values)
+    # 3) Curated (fixed small vocab counts)
+    vocab_idx = {w:i for i,w in enumerate(CURATED)}
+    rows_idx, cols_idx, data_vals = [], [], []
+    for r, text in enumerate(agg3["news"].values):
+        counts = {}
+        for tok in text.split():
+            if tok in vocab_idx:
+                counts[tok] = counts.get(tok, 0) + 1
+        for tok, c in counts.items():
+            rows_idx.append(r); cols_idx.append(vocab_idx[tok]); data_vals.append(c)
+    X_cur = sparse.csr_matrix((data_vals, (rows_idx, cols_idx)), shape=(len(agg3), len(CURATED)), dtype=np.float32)
+
+    # Save matrices and index files
+    def dump(name: str, X: sparse.csr_matrix):
+        from scipy.sparse import save_npz
+        save_npz(OUT_DIR / f"{name}_features.npz", X)
+        agg3[["date","symbol","impact_score"]].to_csv(OUT_DIR / f"{name}_index.csv", index=False)
+
+    dump("vector_dtm", X_dtm)
+    dump("vector_tfidf", X_tfidf)
+    dump("vector_curated", X_cur)
+
+    print(f"[OK] Vector files written to {OUT_DIR}")
+    print("DTM shape:", X_dtm.shape, "| TFIDF shape:", X_tfidf.shape, "| Curated shape:", X_cur.shape)
+    # quick label check
+    print("Label counts:", agg3["impact_score"].value_counts().sort_index().to_dict())
+
+if __name__ == "__main__":
+    main()

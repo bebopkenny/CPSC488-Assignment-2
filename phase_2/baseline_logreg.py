@@ -11,6 +11,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--name", choices=["vector_dtm","vector_tfidf","vector_curated"], required=True)
     ap.add_argument("--ternary", action="store_true")
+    ap.add_argument("--C", type=float, default=1.0)
     args = ap.parse_args()
 
     ROOT = Path(__file__).resolve().parent
@@ -26,7 +27,7 @@ def main():
     Xtr, Xte = X[:n_tr], X[n_tr:]
     ytr, yte = y[:n_tr], y[n_tr:]
 
-    clf = LogisticRegression(max_iter=3000, class_weight="balanced", n_jobs=1)
+    clf = LogisticRegression(max_iter=3000, class_weight="balanced", n_jobs=1, C=args.C)
     clf.fit(Xtr, ytr)
     pred = clf.predict(Xte)
 

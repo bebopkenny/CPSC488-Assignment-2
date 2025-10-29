@@ -3,15 +3,11 @@ from pathlib import Path
 import numpy as np
 import torch
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, classification_report
+from importlib.machinery import SourceFileLoader
 
-import importlib.util, sys
-from pathlib import Path
-
-_model_path = Path(__file__).with_name("2_model.py")
-_spec = importlib.util.spec_from_file_location("model2", _model_path)
-_model2 = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_model2)
-MLP = _model2.MLP
+# Load MLP class directly from 2_model.py (no renames needed)
+_MLP = SourceFileLoader("model2", str(Path(__file__).with_name("2_model.py"))).load_module()
+MLP = _MLP.MLP
 
 
 CLASS_ORDER = [-3, -2, -1, 0, 1, 2, 3]

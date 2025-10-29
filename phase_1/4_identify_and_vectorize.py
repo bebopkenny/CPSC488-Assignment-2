@@ -207,19 +207,21 @@ def main():
 
     # 1) DTM
     cv = CountVectorizer(
-    min_df=2,           # was 5
-    max_df=0.9,
-    ngram_range=(1,2),  # add bigrams
+    min_df=1,           # was 5
+    max_df=0.95,
+    ngram_range=(1,3),  # add bigrams
     token_pattern=r"(?u)\b[a-z0-9]{2,}\b",
     stop_words="english"
     )
     
     X_dtm = cv.fit_transform(agg3["news"].values)
+
     # 2) TF-IDF
     tfv = TfidfVectorizer(
-    min_df=2,           # was 5
-    max_df=0.9,
-    ngram_range=(1,2),  # add bigrams
+    min_df=1,           # was 5
+    max_df=0.95,
+    ngram_range=(1,3),  # add bigrams
+    max_features=3000,
     token_pattern=r"(?u)\b[a-z0-9]{2,}\b",
     stop_words="english"
     )

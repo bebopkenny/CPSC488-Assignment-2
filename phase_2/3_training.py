@@ -4,16 +4,15 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import TensorDataset, DataLoader, WeightedRandomSampler
+from torch.utils.data import TensorDataset, DataLoader
+from importlib.machinery import SourceFileLoader
 
-import importlib.util, sys
-from pathlib import Path
+# Load MLP class directly from 2_model.py (no renames needed)
+_MLP = SourceFileLoader("model2", str(Path(__file__).with_name("2_model.py"))).load_module()
+MLP = _MLP.MLP
 
-_model_path = Path(__file__).with_name("2_model.py")
-_spec = importlib.util.spec_from_file_location("model2", _model_path)
-_model2 = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_model2)
-MLP = _model2.MLP
+
+
 
 class FocalLoss(nn.Module):
     def __init__(self, alpha=None, gamma=2.0, reduction="mean"):
@@ -57,6 +56,13 @@ def main():
 
     prefix = PROC / args.name
     X_train, y_train, X_test, y_test, meta = load_splits(prefix)
+
+    print(f"[SUMMARY] name={args.name}")
+    print(f"[SUMMARY] X_train={X_train.shape}, X_test={X_test.shape}")
+    print(f"[SUMMARY] y_train={y_train.shape}, y_test={y_test.shape}")
+
+    print(f"[SUMMARY] saving to: {MODELS / f'{args.name}_mlp.pth'}")
+
 
     # carve chronological validation from the end of TRAIN (10%)
     n_tr = len(X_train)
@@ -126,3 +132,13 @@ def main():
     out_path = MODELS / f"{args.name}_mlp.pth"
     torch.save({"model_state": model.state_dict(), "meta": meta}, out_path)
     print("[OK] saved", out_path)
+
+    print(f"[SUMMARY] name={args.name}")
+    print(f"[SUMMARY] X_train={X_train.shape}, X_test={X_test.shape}")
+    print(f"[SUMMARY] y_train={y_train.shape}, y_test={y_test.shape}")
+    print(f"[SUMMARY] saving to: {MODELS / f'{args.name}_mlp.pth'}")
+
+
+if __name__ == "__main__":
+    main()
+

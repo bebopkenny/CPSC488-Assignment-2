@@ -11,3 +11,5 @@ torchvision
 torchaudio 
 tqdm 
 python-dateutil
+scipy
+scikit-learn

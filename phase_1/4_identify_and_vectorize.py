@@ -207,9 +207,11 @@ def main():
 
     # 1) DTM
     cv = CountVectorizer(
-    min_df=1,           # was 5
+    min_df=2,           # was 5
     max_df=0.95,
-    ngram_range=(1,3),  # add bigrams
+    ngram_range=(1,2),  # add bigrams
+    max_features=2000,
+    binary=True,
     token_pattern=r"(?u)\b[a-z0-9]{2,}\b",
     stop_words="english"
     )
@@ -218,10 +220,10 @@ def main():
 
     # 2) TF-IDF
     tfv = TfidfVectorizer(
-    min_df=1,           # was 5
+    min_df=2,           # was 5
     max_df=0.95,
-    ngram_range=(1,3),  # add bigrams
-    max_features=3000,
+    ngram_range=(1,2),  # add bigrams
+    max_features=2000,
     token_pattern=r"(?u)\b[a-z0-9]{2,}\b",
     stop_words="english"
     )

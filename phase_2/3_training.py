@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import TensorDataset, DataLoader
+from torch.utils.data import TensorDataset, DataLoader, WeightedRandomSampler
 from importlib.machinery import SourceFileLoader
 
 # Load MLP class directly from 2_model.py (no renames needed)
@@ -73,31 +73,56 @@ def main():
     input_dim = meta["input_dim"]
     num_classes = len(meta.get("class_order", [-3, -2, -1, 0, 1, 2, 3]))
 
-    # tensors
-    Xtr_t  = torch.from_numpy(Xtr)
-    ytr_t  = torch.from_numpy(ytr)
-    Xval_t = torch.from_numpy(Xval)
-    yval_t = torch.from_numpy(yval)
+   # tensors
+    Xtr_t  = torch.from_numpy(Xtr).float()
+    ytr_t  = torch.from_numpy(ytr).long()
+    Xval_t = torch.from_numpy(Xval).float()
+    yval_t = torch.from_numpy(yval).long()
 
-    # class-weighted CE (balanced-ish)
-    class_counts = np.bincount(ytr, minlength=num_classes).astype(np.float32)
-    weights = class_counts.sum() / np.maximum(class_counts, 1.0)
-    weights = weights / weights.mean()
-    class_weights = torch.tensor(weights, dtype=torch.float32)
+    # ----- class weights (balanced-ish) -----
+    # Support ternary labels {-1,0,1} by mapping to indices {0,1,2}
+    if ytr.min() == -1 and ytr.max() == 1:
+        counts = np.array([
+            (ytr == -1).sum(),
+            (ytr ==  0).sum(),
+            (ytr ==  1).sum()
+        ], dtype=np.float32)
+        idx_for_weights = ytr + 1          # {-1,0,1} -> {0,1,2}
+    else:
+        counts = np.bincount(ytr, minlength=num_classes).astype(np.float32)
+        idx_for_weights = ytr              # already 0..K-1
 
+    # inverse-frequency style weights, normalized to mean = 1
+    class_weights = counts.sum() / np.maximum(counts, 1.0)
+    class_weights = class_weights / class_weights.mean()
+    class_weights_t = torch.tensor(class_weights, dtype=torch.float32)
+
+    # ----- oversampling via per-sample weights -----
+    sample_weights = class_weights[idx_for_weights]
+    sampler = WeightedRandomSampler(
+        weights=torch.tensor(sample_weights, dtype=torch.float32),
+        num_samples=len(sample_weights),
+        replacement=True
+    )
+
+    # model / opt / loss
     model = MLP(input_dim=input_dim, num_classes=num_classes)
     opt = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    criterion = nn.CrossEntropyLoss(weight=class_weights)
+    criterion = nn.CrossEntropyLoss(weight=class_weights_t)
 
-    # plain shuffled loader (no sampler)
-    train_loader = DataLoader(TensorDataset(Xtr_t, ytr_t), batch_size=args.batch_size, shuffle=True)
+    # use sampler (do NOT also pass shuffle=True)
+    train_loader = DataLoader(
+        TensorDataset(Xtr_t, ytr_t),
+        batch_size=args.batch_size,
+        sampler=sampler,
+        drop_last=False
+    )
 
-    # train with val early stopping
+    # ----- train with val early stopping -----
     best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
     best_val = float("inf"); patience = 8; strikes = 0
 
     for epoch in range(1, args.epochs + 1):
-        # train
         model.train()
         total = 0.0
         for xb, yb in train_loader:
@@ -137,7 +162,6 @@ def main():
     print(f"[SUMMARY] X_train={X_train.shape}, X_test={X_test.shape}")
     print(f"[SUMMARY] y_train={y_train.shape}, y_test={y_test.shape}")
     print(f"[SUMMARY] saving to: {MODELS / f'{args.name}_mlp.pth'}")
-
 
 if __name__ == "__main__":
     main()

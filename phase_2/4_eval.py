@@ -35,7 +35,11 @@ def main():
     MODELS = (ROOT / "../models").resolve()
 
     X_train, y_train, X_test, y_test, meta = load_splits(PROC / args.name)
-    input_dim = meta["input_dim"]; num_classes = 7
+    # after loading meta
+    num_classes = len(meta.get("class_order", [-3, -2, -1, 0, 1, 2, 3]))
+    CLASS_ORDER = meta.get("class_order", [-3, -2, -1, 0, 1, 2, 3])
+    input_dim = meta["input_dim"]
+
 
     ckpt = torch.load(MODELS / f"{args.name}_mlp.pth", map_location="cpu")
     model = MLP(input_dim=input_dim, num_classes=num_classes)

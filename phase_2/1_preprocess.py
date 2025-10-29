@@ -14,6 +14,7 @@ CLASS_TO_IDX = {c:i for i,c in enumerate(CLASS_ORDER)}
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--ternary", action="store_true", help="Map labels to {-1,0,1} bins")
     ap.add_argument("--name", choices=["vector_dtm","vector_tfidf","vector_curated"], required=True)
     ap.add_argument("--train_frac", type=float, default=0.8)
     args = ap.parse_args()
@@ -27,7 +28,18 @@ def main():
     X = X[order, :]
 
     y_raw = meta["impact_score"].astype(int).tolist()
-    y = np.array([CLASS_TO_IDX[v] for v in y_raw], dtype=np.int64)
+
+    if args.ternary:
+        def to3(v): 
+            return -1 if v <= -1 else (1 if v >= 1 else 0)
+        y_raw = [to3(v) for v in y_raw]
+        class_order_local = [-1, 0, 1]
+    else:
+        class_order_local = [-3, -2, -1, 0, 1, 2, 3]
+
+    class_to_idx = {c:i for i,c in enumerate(class_order_local)}
+    y = np.array([class_to_idx[v] for v in y_raw], dtype=np.int64)
+
 
     n = len(meta)
     n_train = int(n * args.train_frac)
@@ -52,7 +64,7 @@ def main():
         "n_train": int(idx_train.size),
         "n_test": int(idx_test.size),
         "input_dim": int(X.shape[1]),
-        "class_order": CLASS_ORDER
+        "class_order": class_order_local
     }
     with open(prefix.with_suffix(".json"), "w") as f:
         json.dump(summary, f, indent=2)

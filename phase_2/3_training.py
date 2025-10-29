@@ -5,7 +5,16 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
-from model import MLP
+
+import importlib.util, sys
+from pathlib import Path
+
+_model_path = Path(__file__).with_name("2_model.py")
+_spec = importlib.util.spec_from_file_location("model2", _model_path)
+_model2 = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_model2)
+MLP = _model2.MLP
+
 
 def load_splits(prefix: Path):
     X_train = np.load(prefix.with_suffix(".X_train.npy"))

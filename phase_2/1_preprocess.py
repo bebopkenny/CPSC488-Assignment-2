@@ -22,10 +22,12 @@ def main():
     X = load_npz(DATASETS / f"{args.name}_features.npz")
     meta = pd.read_csv(DATASETS / f"{args.name}_index.csv", parse_dates=["date"])
     # Sort by time for chronological split
-    meta = meta.sort_values("date").reset_index(drop=True)
-    # Align X rows with sorted meta
-    order = meta.index.values
+    # Sort by time for chronological split, but keep original row positions
+    meta_sorted = meta.sort_values("date").reset_index()  # 'index' column = original positions
+    order = meta_sorted["index"].to_numpy()
     X = X[order, :]
+    meta = meta_sorted.drop(columns=["index"]).reset_index(drop=True)
+
 
     y_raw = meta["impact_score"].astype(int).tolist()
 
@@ -71,6 +73,12 @@ def main():
     print("[OK] Wrote:", prefix.with_suffix(".X_train.npy").name, prefix.with_suffix(".y_train.npy").name,
           prefix.with_suffix(".X_test.npy").name, prefix.with_suffix(".y_test.npy").name)
     print("Summary:", summary)
+
+    idx_all = meta[["date","symbol"]].copy() if {"date","symbol"}.issubset(meta.columns) else meta.copy()
+    idx_train_df = idx_all.iloc[idx_train].reset_index(drop=True)
+    idx_test_df  = idx_all.iloc[idx_test].reset_index(drop=True)
+    idx_train_df.to_csv(prefix.with_suffix(".index_train.csv"), index=False)
+    idx_test_df.to_csv(prefix.with_suffix(".index_test.csv"), index=False)
 
 if __name__ == "__main__":
     main()

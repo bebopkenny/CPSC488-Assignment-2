@@ -79,6 +79,21 @@ def main():
     Xval_t = torch.from_numpy(Xval).float()
     yval_t = torch.from_numpy(yval).long()
 
+    # ----- undersample majority class 0 in TRAIN ONLY -----
+    rng = np.random.default_rng(42)
+    if ytr.min() == -1 and ytr.max() == 1:
+        idx_neg = np.where(ytr == -1)[0]
+        idx_neu = np.where(ytr ==  0)[0]
+        idx_pos = np.where(ytr ==  1)[0]
+        target = int(max(1, min(len(idx_neg), len(idx_pos))))
+        target = min(target, len(idx_neu))
+        keep = np.concatenate([idx_neg, rng.choice(idx_neu, size=target, replace=False), idx_pos])
+        keep.sort()
+        Xtr, ytr = Xtr[keep], ytr[keep]
+        print("[DEBUG] train class counts after undersample:",
+            {c:int((ytr==c).sum()) for c in sorted(np.unique(ytr))})
+
+
     # ----- class weights (balanced-ish) -----
     # Support ternary labels {-1,0,1} by mapping to indices {0,1,2}
     if ytr.min() == -1 and ytr.max() == 1:
@@ -108,7 +123,7 @@ def main():
     # model / opt / loss
     model = MLP(input_dim=input_dim, num_classes=num_classes)
     opt = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    criterion = nn.CrossEntropyLoss(weight=class_weights_t)
+    criterion = FocalLoss(alpha=class_weights_t, gamma=2.0)
 
     # use sampler (do NOT also pass shuffle=True)
     train_loader = DataLoader(

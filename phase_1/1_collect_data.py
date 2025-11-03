@@ -68,9 +68,9 @@ def _find_first_col(cols: Iterable[str], candidates: Iterable[str]) -> Optional[
 import re
 
 TICKER_PATTERNS = [
-    re.compile(r"\((?P<ticker>[A-Z]{1,5})\)"),                    # e.g., "Agilent (A) Gears Up..."
-    re.compile(r"\bNYSE[:\s]+(?P<ticker>[A-Z]{1,5})\b"),         # e.g., "NYSE: A"
-    re.compile(r"\bNASDAQ[:\s]+(?P<ticker>[A-Z]{1,5})\b"),       # e.g., "NASDAQ: MSFT"
+    re.compile(r"\((?P<ticker>[A-Z]{1,5})\)"),                 
+    re.compile(r"\bNYSE[:\s]+(?P<ticker>[A-Z]{1,5})\b"),      
+    re.compile(r"\bNASDAQ[:\s]+(?P<ticker>[A-Z]{1,5})\b"),       
     re.compile(r"\bNasdaq[:\s]+(?P<ticker>[A-Z]{1,5})\b"),
     re.compile(r"\bAMEX[:\s]+(?P<ticker>[A-Z]{1,5})\b"),
     re.compile(r"\bTicker[:\s]+(?P<ticker>[A-Z]{1,5})\b"),
@@ -101,9 +101,6 @@ def extract_first_ticker(text: str) -> Optional[str]:
     return None
 
 def load_news_like_csv(path: Optional[str]) -> pd.DataFrame:
-    """Load a CSV that likely contains {date, symbol, headline, url, publisher} in any naming variant.
-    Returns empty DataFrame if path is None or file missing.
-    """
     if not path:
         return pd.DataFrame()
     p = Path(path)
@@ -174,12 +171,6 @@ def load_news_like_csv(path: Optional[str]) -> pd.DataFrame:
 
 
 def normalize_symbols_for_yahoo(symbols: Iterable[str]) -> Dict[str, str]:
-    """
-    Convert generic tickers to Yahoo Finance ticker format for download.
-    Returns mapping: original_symbol -> yahoo_symbol
-    - Replace '.' with '-' (e.g., BRK.B -> BRK-B; RDS.A -> RDS-A)
-    - Keep ^GSPC as-is
-    """
     mapping = {}
     for s in symbols:
         s_clean = s.strip().upper()

@@ -1,9 +1,9 @@
 {
-  "name": "vector_dtm",
+  "name": "vector_curated",
   "n_total": 251,
   "n_train": 200,
   "n_test": 51,
-  "input_dim": 166,
+  "input_dim": 10,
   "class_order": [
     -3,
     -2,

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import argparse, json
 from pathlib import Path
 import numpy as np
@@ -7,9 +6,9 @@ import torch
 from importlib.machinery import SourceFileLoader
 import torch.nn.functional as F
 
-# --------------------
+
 # Paths and loaders
-# --------------------
+
 THIS   = Path(__file__).resolve()
 ROOT   = THIS.parent.parent                 # project root
 PROC   = ROOT / "datasets" / "processed"
@@ -39,9 +38,9 @@ def main():
     class_order = meta.get("class_order", [-1, 0, 1])  # ternary for your runs
     num_classes = len(class_order)
 
-    # --------------------
+    
     # Load features (test split)
-    # --------------------
+    
     X_test = np.load(prefix.with_suffix(".X_test.npy"))
     idx_csv = prefix.with_suffix(".index_test.csv")
     idx_df = None
@@ -51,18 +50,18 @@ def main():
         if "date" in idx_df.columns:
             idx_df["date"] = pd.to_datetime(idx_df["date"], errors="coerce")
 
-    # --------------------
+    
     # Build model + load weights
-    # --------------------
+    
     model = MLP(input_dim=input_dim, num_classes=num_classes)
     ckpt_path = Path(args.ckpt) if args.ckpt else (MODELS / f"{args.name}_mlp.pth")
     ckpt = torch.load(ckpt_path, map_location="cpu")
     model.load_state_dict(ckpt["model_state"])
     model.eval()
 
-    # --------------------
+    
     # Predict
-    # --------------------
+    
     X_test_t = torch.from_numpy(X_test)
     with torch.no_grad():
         logits = model(X_test_t)
@@ -75,9 +74,9 @@ def main():
     pred_class = np.array(class_order, dtype=int)[pred_idx]
     pred_class = np.where(conf >= TH, pred_class, 0)
 
-    # --------------------
+    
     # Assemble output
-    # --------------------
+    
     if idx_df is not None and not idx_df.empty:
         out = idx_df.copy()
         out["pred_idx"] = pred_idx
@@ -99,9 +98,9 @@ def main():
             "pred_class": pred_class
         })
 
-    # --------------------
+    
     # Save where phase_3 step 2 expects it
-    # --------------------
+    
     out_path = ROOT / "phase_3" / "predictions.csv"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out.to_csv(out_path, index=False)

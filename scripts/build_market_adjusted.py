@@ -11,7 +11,7 @@ def load_prices():
     # Normalize symbol casing
     df["symbol"] = df["symbol"].astype(str)
 
-    # Map common S&P tickers to "s&p"
+    # Map common S&P tickers to "&p
     sp_map = {
         "^GSPC": "s&p",
         "GSPC": "s&p",
@@ -64,7 +64,7 @@ def compute_market_adjusted(df: pd.DataFrame) -> pd.DataFrame:
            .rolling(window=20, min_periods=5).std().reset_index(level=0, drop=True)
     )
 
-    # Per symbol alpha and beta over the whole sample (OLS without intercept for beta, then alpha)
+    # Per symbol alpha and beta over the whole sample
     def alpha_beta(g):
         g2 = g.dropna(subset=["daily_return", "market_return"])
         if len(g2) < 10:

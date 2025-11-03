@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -13,9 +12,9 @@ def main():
     preds  = pd.read_csv(preds_path)
     prices = pd.read_csv(prices_path)
 
-    # --------------------
+    
     # Preferred path: merge on (date, symbol)
-    # --------------------
+    
     have_keys = (
         {"date","symbol"}.issubset(preds.columns) and
         {"date","symbol","close"}.issubset(prices.columns)
@@ -35,9 +34,9 @@ def main():
             on=["date","symbol"], how="left"
         ).sort_values(["symbol","date"]).reset_index(drop=True)
     else:
-        # --------------------
+        
         # Fallback: index-aligned attach of 'close'
-        # --------------------
+        
         if "date" in prices.columns and "symbol" in prices.columns:
             prices = prices.sort_values(["date","symbol"]).reset_index(drop=True)
         closes = prices["close"].values
@@ -55,9 +54,9 @@ def main():
         raise RuntimeError("predictions.csv must contain a 'pred_class' column")
     df["signal"] = df["pred_class"].clip(-1, 1)
 
-    # --------------------
+    
     # Compute next-day returns per symbol
-    # --------------------
+    
     df = df.sort_values(["symbol","date"]).reset_index(drop=True)
 
     # Shift next close within each symbol
@@ -71,9 +70,9 @@ def main():
     # (When multiple symbols, this is a simple compounding of per-row trade returns)
     df["equity"] = (1.0 + df["pnl"].fillna(0.0)).cumprod()
 
-    # --------------------
+    
     # Outputs
-    # --------------------
+    
     trade_log_path = ROOT / "phase_3" / "trade_log.csv"
     summary_path   = ROOT / "phase_3" / "final_summary.csv"
     trade_log_path.parent.mkdir(parents=True, exist_ok=True)

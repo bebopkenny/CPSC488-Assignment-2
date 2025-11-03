@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import argparse, json
 from pathlib import Path
 import numpy as np
@@ -43,7 +42,7 @@ def main():
     # Predict
     ypred = clf.predict(Xte)
 
-    # Decision margins (confidence-ish)
+    # Decision margins 
     dec = clf.decision_function(Xte)
     if dec.ndim == 1:
         margin = np.abs(dec)
@@ -58,7 +57,7 @@ def main():
     print(f"Macro F1: {macro_f1}")
     print(classification_report(yte, ypred))
 
-    # Build predictions output (attach date,symbol if index exists)
+    # Build predictions output
     idx_csv = prefix.with_suffix(".index_test.csv")
     if idx_csv.exists():
         idx_df = pd.read_csv(idx_csv)

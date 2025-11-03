@@ -79,7 +79,7 @@ def main():
     Xval_t = torch.from_numpy(Xval).float()
     yval_t = torch.from_numpy(yval).long()
 
-    # ----- undersample majority class 0 in TRAIN ONLY -----
+    #   undersample majority class 0 in TRAIN ONLY  
     rng = np.random.default_rng(42)
     if ytr.min() == -1 and ytr.max() == 1:
         idx_neg = np.where(ytr == -1)[0]
@@ -94,7 +94,7 @@ def main():
             {c:int((ytr==c).sum()) for c in sorted(np.unique(ytr))})
 
 
-    # ----- class weights (balanced-ish) -----
+    #   class weights (balanced-ish)  
     # Support ternary labels {-1,0,1} by mapping to indices {0,1,2}
     if ytr.min() == -1 and ytr.max() == 1:
         counts = np.array([
@@ -102,7 +102,7 @@ def main():
             (ytr ==  0).sum(),
             (ytr ==  1).sum()
         ], dtype=np.float32)
-        idx_for_weights = ytr + 1          # {-1,0,1} -> {0,1,2}
+        idx_for_weights = ytr + 1 # {-1,0,1} -> {0,1,2}
     else:
         counts = np.bincount(ytr, minlength=num_classes).astype(np.float32)
         idx_for_weights = ytr              # already 0..K-1
@@ -112,7 +112,7 @@ def main():
     class_weights = class_weights / class_weights.mean()
     class_weights_t = torch.tensor(class_weights, dtype=torch.float32)
 
-    # ----- oversampling via per-sample weights -----
+    #   oversampling via per-sample weights  
     sample_weights = class_weights[idx_for_weights]
     sampler = WeightedRandomSampler(
         weights=torch.tensor(sample_weights, dtype=torch.float32),
@@ -125,7 +125,7 @@ def main():
     opt = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     criterion = FocalLoss(alpha=class_weights_t, gamma=2.0)
 
-    # use sampler (do NOT also pass shuffle=True)
+    # use sampler do NOT also pass shuffle=True
     train_loader = DataLoader(
         TensorDataset(Xtr_t, ytr_t),
         batch_size=args.batch_size,
@@ -133,7 +133,7 @@ def main():
         drop_last=False
     )
 
-    # ----- train with val early stopping -----
+    #   train with val early stopping 
     best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
     best_val = float("inf"); patience = 8; strikes = 0
 

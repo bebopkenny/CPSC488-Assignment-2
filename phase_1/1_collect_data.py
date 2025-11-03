@@ -35,9 +35,9 @@ except Exception as e:
     yf = None
 
 
-# -----------------------------
+
 # Flexible CSV loading utilities
-# -----------------------------
+
 
 CANDIDATE_COLS = {
     "date": ["date", "datetime", "published_at", "timestamp", "pub_date"],
@@ -62,9 +62,9 @@ def _find_first_col(cols: Iterable[str], candidates: Iterable[str]) -> Optional[
 
 
 
-# -----------------------------
+
 # Symbol extraction from free-text headlines
-# -----------------------------
+
 import re
 
 TICKER_PATTERNS = [
@@ -169,9 +169,9 @@ def load_news_like_csv(path: Optional[str]) -> pd.DataFrame:
     return out
 
 
-# -----------------------------
+
 # Symbol normalization
-# -----------------------------
+
 
 def normalize_symbols_for_yahoo(symbols: Iterable[str]) -> Dict[str, str]:
     """
@@ -209,9 +209,9 @@ def gather_symbols(analyst_df: pd.DataFrame, headlines_df: pd.DataFrame, extra_s
     return syms
 
 
-# -----------------------------
+
 # Price downloading
-# -----------------------------
+
 
 
 def _safe_price_frame(df_sym: pd.DataFrame) -> pd.DataFrame:
